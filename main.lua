@@ -1,22 +1,92 @@
 #!/usr/bin/lua
 
+getmetatable('').__index = function(str, i) return string.sub(str, i, i) end
+
 local WIDTH, HEIGHT = 8, 12
 
 local onsets = {
     "k", "g", "m", "n", "r", "l", "t", "d", "s", "b", "v", "h",
-    "vr", "rl", "tr", "st", "nv"
+    "vr", "rl", "tr", "st", "nv", "fl"
 }
 
 local nuclei = {
     "a", "e", "i", "o"
 }
 
-local vvv = {
-    ["g"] = "k",
-    ["k"] = "g",
-    ["t"] = "d",
-    ["d"] = "t",
+local banned = {
+    openclose = {
+        {"o", "i"},
+        {"b", "d"},
+    },
+    endings = {
+        "o", "e",
+        "k", "g",
+        "b", "s",
+        "m", "h"
+    },
+    specific = {
+        ["o"] = {
+            far  = {"o"},
+        },
+        ["m"] = {
+            all  = {"m", "h"},
+        },
+        ["n"] = {
+            near = {"h"},
+        },
+        ["h"] = {
+            near = {"d", "g", "b"},
+            all  = {"m"},
+        },
+        ["k"] = {
+            near = {"h", "g", "b"},
+        },
+        ["g"] = {
+            all  = {"g"},
+            near = {"d", "k"},
+        },
+        ["t"] = {
+            near = {"d"},
+        },
+        ["d"] = {
+            near = {"t", "g"},
+        },
+        ["b"] = {
+            near = {"d"},
+        },
+        ["r"] = {
+            near = {"s"},
+            far  = {"r", "l"},
+        },
+        ["l"] = {
+            near = {"h"},
+            far  = {"l", "r"},
+        },
+        ["vr"] = {
+            all  = {"v"},
+        }
+    },
 }
+
+local function anycmp(a, b)
+    if not a then
+        return false
+    end
+
+    for i = 1, #a do
+        if a[i] == b then
+            return true
+        end
+    end
+
+    for i = 1, #b do
+        if b[i] == a then
+            return true
+        end
+    end
+
+    return false
+end
 
 local function checker(val, word)
     if #word == 0 then
@@ -25,30 +95,36 @@ local function checker(val, word)
         end
     end
 
-    if (word[#word - 1] or 1) == val or (word[#word] or 2) == val then
+    if anycmp(word[#word - 1], val) or anycmp(word[#word - 0], val) then
         return false
     end
 
-    if vvv[(word[#word - 1] or 1)] == val or vvv[(word[#word] or 2)] == val then
-        return false
-    end
+    if banned.specific[val] then
+        local specific = banned.specific[val]
 
-    if val == "m" then
-        if table.contains(word, val) then
-            return false
+        if specific.all then
+            for _, v in pairs(specific.all) do
+                if table.contains(word, v) then
+                    return false
+                end
+            end
         end
 
-        if table.contains(word, "h") then
-            return false
+        if specific.near then
+            for _, v in pairs(specific.near) do
+                if (word[#word - 1] or 1) == v or (word[#word] or 2) == v then
+                    return false
+                end
+            end
         end
-    elseif val == "h" then
-        if table.contains(word, "m") then
-            return false
+
+        if specific.far then
+            for _, v in pairs(specific.far) do
+                if (word[#word - 3] or 1) == v or (word[#word - 2] or 2) == v then
+                    return false
+                end
+            end
         end
-    elseif val == "k" then
-        if (word[#word - 1] or 1) == "h" or (word[#word] or 2) == "h" then
-            return false
-        end    
     end
 
     if #val > 1 then
@@ -131,23 +207,7 @@ local function word()
     repeat
         len = #word
 
-        if word[#word] == "o" or word[#word] == "e" then
-            table.remove(word, #word)
-        end
-
-        if word[#word] == "k" or word[#word] == "g" then
-            table.remove(word, #word)
-        end
-
-        if word[#word] == "b" then
-            table.remove(word, #word)
-        end
-
-        if word[#word] == "s" then
-            table.remove(word, #word)
-        end
-
-        if word[#word] == "h" then
+        if table.contains(banned.endings, word[#word]) then
             table.remove(word, #word)
         end
 
@@ -155,8 +215,10 @@ local function word()
             table.remove(word, #word)
         end
 
-        if word[1] == "o" or word[#word] == "i" then
-            table.remove(word, 1)
+        for _, pair in pairs(banned.openclose) do
+            if word[1] == pair[1] or word[#word] == pair[2] then
+                goto again
+            end
         end
     until len == #word
 
@@ -174,21 +236,28 @@ local function word()
 end
 
 local blacklist = {}
+local list      = {}
 
 math.randomseed(os.time())
+
+for i = 1, WIDTH * HEIGHT do
+    local gen
+    repeat
+        gen = word()
+    until not blacklist[gen]
+
+    blacklist[gen] = true
+    table.insert(list, gen)
+end
+
+local index = 1
 
 for y = 1, HEIGHT do
     local line = ""
 
     for x = 1, WIDTH do
-        local gen
-
-        repeat
-            gen = word()
-        until not blacklist[gen]
-
-        blacklist[gen] = true
-        line = line .. string.format("%-13s", gen)
+        line  = line .. string.format("%-13s", list[index])
+        index = index + 1
     end
 
     print(line)
