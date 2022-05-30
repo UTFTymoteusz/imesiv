@@ -4,69 +4,7 @@ getmetatable('').__index = function(str, i) return string.sub(str, i, i) end
 
 local WIDTH, HEIGHT = 8, 12
 
-local onsets = {
-    "k", "g", "m", "n", "r", "l", "t", "d", "s", "b", "v", "h",
-    "vr", "rl", "tr", "st", "nv", "fl"
-}
-
-local nuclei = {
-    "a", "e", "i", "o"
-}
-
-local banned = {
-    openclose = {
-        {"o", "i"},
-        {"b", "d"},
-    },
-    endings = {
-        "o", "e",
-        "k", "g",
-        "b", "s",
-        "m", "h"
-    },
-    specific = {
-        ["o"] = {
-            far  = {"o"},
-        },
-        ["m"] = {
-            all  = {"m", "h"},
-        },
-        ["n"] = {
-            near = {"h"},
-        },
-        ["h"] = {
-            near = {"d", "g", "b"},
-            all  = {"m"},
-        },
-        ["k"] = {
-            near = {"h", "g", "b"},
-        },
-        ["g"] = {
-            all  = {"g"},
-            near = {"d", "k"},
-        },
-        ["t"] = {
-            near = {"d"},
-        },
-        ["d"] = {
-            near = {"t", "g"},
-        },
-        ["b"] = {
-            near = {"d"},
-        },
-        ["r"] = {
-            near = {"s"},
-            far  = {"r", "l"},
-        },
-        ["l"] = {
-            near = {"h"},
-            far  = {"l", "r"},
-        },
-        ["vr"] = {
-            all  = {"v"},
-        }
-    },
-}
+local language = require("defs/" .. (arg[1] or "genesiv"))
 
 local function anycmp(a, b)
     if not a then
@@ -95,12 +33,12 @@ local function checker(val, word)
         end
     end
 
-    if anycmp(word[#word - 1], val) or anycmp(word[#word - 0], val) then
+    if not table.contains(language.nuclei, val) and (anycmp(word[#word - 1], val) or anycmp(word[#word - 0], val)) then
         return false
     end
 
-    if banned.specific[val] then
-        local specific = banned.specific[val]
+    if language.banned.specific[val] then
+        local specific = language.banned.specific[val]
 
         if specific.all then
             for _, v in pairs(specific.all) do
@@ -164,7 +102,7 @@ function table.wordRandom(tbl, word)
 end
 
 local function syllable(word)
-    return table.wordRandom(onsets, word), table.wordRandom(nuclei, word)
+    return table.wordRandom(language.onsets, word), table.wordRandom(language.nuclei, word)
 end
 
 local function word()
@@ -172,7 +110,7 @@ local function word()
     local word = {}
 
     if math.random() <= 0.50 then
-        table.insert(word, table.wordRandom(nuclei))
+        table.insert(word, table.wordRandom(language.nuclei))
     else
         local a, b = syllable(word, {})
 
@@ -199,15 +137,15 @@ local function word()
         table.insert(word, b)
     end
 
-    if math.random() <= 0.33 then
-        table.insert(word, table.wordRandom(onsets, word))
+    if math.random() <= 0.50 then
+        table.insert(word, table.wordRandom(language.onsets, word))
     end
 
     local len
     repeat
         len = #word
 
-        if table.contains(banned.endings, word[#word]) then
+        if table.contains(language.banned.endings, word[#word]) then
             table.remove(word, #word)
         end
 
@@ -215,7 +153,7 @@ local function word()
             table.remove(word, #word)
         end
 
-        for _, pair in pairs(banned.openclose) do
+        for _, pair in pairs(language.banned.openclose) do
             if word[1] == pair[1] or word[#word] == pair[2] then
                 goto again
             end
@@ -226,7 +164,7 @@ local function word()
         goto again
     end
 
-    if table.contains(nuclei, word[#word]) and word[#word] ~= "i" then
+    if table.contains(language.nuclei, word[#word]) and word[#word] ~= "i" then
         if math.random() <= 0.33 then
             table.insert(word, #word, "i")
         end
