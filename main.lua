@@ -2,8 +2,52 @@
 
 getmetatable('').__index = function(str, i) return string.sub(str, i, i) end
 
-local WIDTH, HEIGHT = 8, 12
+local options = {
+    _NAME = "imesiv",
+    ["w"] = {
+        format = "number",
+        key    = "width",
+        desc   = "Specifies the width of the output grid.",
+        alias  = {"width"},
+    },
+    ["h"] = {
+        format = "number",
+        key    = "height",
+        desc   = "Specifies the height of the output grid.",
+        alias  = {"height"},
+    },
+    ["l"] = {
+        format = "switch",
+        key    = "list",
+        desc   = "Changes the output to a simple list instead of a grid.",
+        alias  = {"list"},
+    },
+    ["c"] = {
+        format = "number",
+        key    = "count",
+        desc   = "Specifies the count of words.",
+        alias  = {"count"},
+    },
+    ["C"] = {
+        format = "switch",
+        key    = "capitalize",
+        desc   = "Capitalizes the first letter of every word.",
+        alias  = {"capitalize"},
+    },
+    ["nofilter"] = {
+        format = "switch",
+        key    = "nofilter",
+        desc   = "Disables any word filters.",
+    },
+}
 
+local config = {
+    width  = 8,
+    height = 12,
+}
+
+local opt      = require("opt")
+local arg      = opt.parse(config, options)
 local language = require("defs/" .. (arg[1] or "genesiv"))
 
 local function anycmp(a, b)
@@ -178,25 +222,50 @@ local list      = {}
 
 math.randomseed(os.time())
 
-for i = 1, WIDTH * HEIGHT do
+if not config.count then
+    config.count = config.width * config.height
+end
+
+for i = 1, config.count do
     local gen
     repeat
         gen = word()
-    until not blacklist[gen]
+    until config.nofilter or not blacklist[gen]
 
     blacklist[gen] = true
     table.insert(list, gen)
 end
 
-local index = 1
-
-for y = 1, HEIGHT do
-    local line = ""
-
-    for x = 1, WIDTH do
-        line  = line .. string.format("%-13s", list[index])
-        index = index + 1
+if config.capitalize then
+    for k, v in pairs(list) do
+        list[k] = string.upper(string.sub(v, 1, 1)) .. string.sub(v, 2)
     end
+end
 
-    print(line)
+if config.list then
+    for k, v in pairs(list) do
+        io.write(v)
+        io.write(" ")
+    end
+else
+    local index = 1
+
+    while true do
+        local line = ""
+
+        for x = 1, config.width do
+            if not list[index] then
+                break
+            end
+
+            line  = line .. string.format("%-13s", list[index])
+            index = index + 1
+        end
+
+        if #line > 0 then
+            print(line)
+        else
+            break
+        end
+    end
 end
