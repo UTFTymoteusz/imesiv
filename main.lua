@@ -39,6 +39,16 @@ local options = {
         key    = "nofilter",
         desc   = "Disables any word filters.",
     },
+    ["s"] = {
+        format = "number",
+        key    = "minsyllables",
+        desc   = "Specifies the minimum amount of syllables in every word.",
+    },
+    ["S"] = {
+        format = "number",
+        key    = "maxsyllables",
+        desc   = "Specifies the maximum amount of syllables in every word.",
+    },
 }
 
 local config = {
@@ -162,27 +172,15 @@ local function word()
         table.insert(word, b)
     end
 
-    local r = math.random()
-    local count
-    do 
-        if r < 0.65 then
-            count = 2
-        elseif r < 0.85 then
-            count = 3
-        else
-            count = 4
-        end
-    end
+    local minsyb, maxsyb = config.minsyllables or 2, config.maxsyllables or 4
+    local r     = math.random()
+    local count = minsyb + math.floor(math.pow(r, 3) * (maxsyb - minsyb) + 0.50)
 
     for i = 2, count do
         local a, b = syllable(word)
         
         table.insert(word, a)
         table.insert(word, b)
-    end
-
-    if math.random() <= 0.50 then
-        table.insert(word, table.wordRandom(language.onsets, word))
     end
 
     local len
